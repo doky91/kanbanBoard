@@ -26,26 +26,26 @@ import lombok.Setter;
 @Builder
 public class Task {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    private String title;
+	private String title;
 
-    @Column(columnDefinition = "TEXT")
-    private String description;
+	@Column(columnDefinition = "TEXT")
+	private String description;
 
-    @ManyToOne
-    @JoinColumn(name = "status_id", nullable = false)
-    private Status status;
+	@ManyToOne
+	@JoinColumn(name = "status_id", nullable = false)
+	private Status status;
 
-    @ManyToOne
-    @JoinColumn(name = "priority_id", nullable = false)
-    private Priority priority;
+	@ManyToOne
+	@JoinColumn(name = "priority_id", nullable = false)
+	private Priority priority;
 
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-    
-    @Version
-    private Integer version;
+	private LocalDateTime createdAt;
+	private LocalDateTime updatedAt;
+
+	@Version
+	private Integer version;
 }
