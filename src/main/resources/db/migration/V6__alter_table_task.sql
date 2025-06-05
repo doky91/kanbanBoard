@@ -1,0 +1,1 @@
+ALTER TABLE task MODIFY id BIGINT;
