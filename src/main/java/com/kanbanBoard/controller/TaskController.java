@@ -3,6 +3,7 @@ package com.kanbanBoard.controller;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
+import java.net.URI;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -12,6 +13,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.Link;
 import org.springframework.hateoas.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,11 +27,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.net.URI;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
-import org.springframework.hateoas.Link;
-
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -59,65 +57,50 @@ public class TaskController {
 	}
 
 	@GetMapping
-	@Operation(summary = "Dohvati sve taskove", tags = {"Tasks"})
-	public ResponseEntity<PagedModel<EntityModel<Task>>> getAllTasks(
-	        @RequestParam(required = false) String status,
-	        @RequestParam(defaultValue = "0") int page,
-	        @RequestParam(defaultValue = "20") int size,
-	        @RequestParam(required = false) String[] sort) {
+	@Operation(summary = "Dohvati sve taskove", tags = { "Tasks" })
+	public ResponseEntity<PagedModel<EntityModel<Task>>> getAllTasks(@RequestParam(required = false) String status,
+			@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size,
+			@RequestParam(required = false) String[] sort) {
 
-	    
-	    List<String> sortList = sort == null ? List.of() : List.of(sort);
-	    List<Sort.Order> orders;
+		List<String> sortList = sort == null ? List.of() : List.of(sort);
+		List<Sort.Order> orders;
 
-	    if (sortList.isEmpty()) {
-	        orders = List.of(new Sort.Order(Sort.Direction.DESC, "createdAt"));
-	    } else {
-	        orders = sortList.stream()
-	                .map(s -> {
-	                    String[] parts = s.split(",");
-	                    if (parts.length != 2) {
-	                        throw new IllegalArgumentException("Sort parametar mora biti u formatu: polje,smjer");
-	                    }
-	                    return new Sort.Order(Sort.Direction.fromString(parts[1]), parts[0]);
-	                })
-	                .toList();
-	    }
+		if (sortList.isEmpty()) {
+			orders = List.of(new Sort.Order(Sort.Direction.DESC, "createdAt"));
+		} else {
+			orders = sortList.stream().map(s -> {
+				String[] parts = s.split(",");
+				if (parts.length != 2) {
+					throw new IllegalArgumentException("Sort parametar mora biti u formatu: polje,smjer");
+				}
+				return new Sort.Order(Sort.Direction.fromString(parts[1]), parts[0]);
+			}).toList();
+		}
 
-	    Pageable pageable = PageRequest.of(page, size, Sort.by(orders));
+		Pageable pageable = PageRequest.of(page, size, Sort.by(orders));
 
-	    Page<Task> taskPage = taskService.getAllTasks(status, pageable);
+		Page<Task> taskPage = taskService.getAllTasks(status, pageable);
 
-	    List<EntityModel<Task>> taskResources = taskPage.stream()
-	            .map(this::toModel)
-	            .collect(Collectors.toList());
+		List<EntityModel<Task>> taskResources = taskPage.stream().map(this::toModel).collect(Collectors.toList());
 
-	    PagedModel<EntityModel<Task>> pagedModel = PagedModel.of(
-	            taskResources,
-	            new PagedModel.PageMetadata(
-	                    taskPage.getSize(),
-	                    taskPage.getNumber(),
-	                    taskPage.getTotalElements(),
-	                    taskPage.getTotalPages()
-	            )
-	    );
+		PagedModel<EntityModel<Task>> pagedModel = PagedModel.of(taskResources, new PagedModel.PageMetadata(
+				taskPage.getSize(), taskPage.getNumber(), taskPage.getTotalElements(), taskPage.getTotalPages()));
 
-	    URI selfUri = ServletUriComponentsBuilder.fromCurrentRequest().build().toUri();
-	    pagedModel.add(Link.of(selfUri.toString(), "self"));
+		URI selfUri = ServletUriComponentsBuilder.fromCurrentRequest().build().toUri();
+		pagedModel.add(Link.of(selfUri.toString(), "self"));
 
-	    return ResponseEntity.ok(pagedModel);
+		return ResponseEntity.ok(pagedModel);
 	}
 
-
 	@GetMapping("/{id}")
-    @Operation(summary = "Dohvati task po ID-ju", tags = {"Tasks"})
+	@Operation(summary = "Dohvati task po ID-ju", tags = { "Tasks" })
 	public ResponseEntity<EntityModel<Task>> getTaskById(@PathVariable Long id) {
 		return taskService.getTaskById(id).map(task -> ResponseEntity.ok(toModel(task)))
 				.orElse(ResponseEntity.notFound().build());
 	}
 
 	@PostMapping
-	@Operation(summary = "Kreiraj task",  tags = {"Tasks"})
+	@Operation(summary = "Kreiraj task", tags = { "Tasks" })
 	public ResponseEntity<EntityModel<Task>> createTask(@RequestBody Task task) {
 		Task created = taskService.createTask(task);
 		EntityModel<Task> model = toModel(created);
@@ -126,7 +109,7 @@ public class TaskController {
 	}
 
 	@PutMapping("/{id}")
-	@Operation(summary = "Ažuriraj task",  tags = {"Tasks"})
+	@Operation(summary = "Ažuriraj task", tags = { "Tasks" })
 	public ResponseEntity<EntityModel<Task>> updateTask(@PathVariable Long id, @RequestBody Task updatedTask) {
 		try {
 			Task task = taskService.updateTask(id, updatedTask);
@@ -139,7 +122,7 @@ public class TaskController {
 	}
 
 	@DeleteMapping("/{id}")
-	@Operation(summary = "Izbriši task",  tags = {"Tasks"})
+	@Operation(summary = "Izbriši task", tags = { "Tasks" })
 	public ResponseEntity<Void> deleteTask(@PathVariable Long id) {
 		try {
 			taskService.deleteTask(id);
@@ -150,9 +133,9 @@ public class TaskController {
 	}
 
 	@PatchMapping(value = "/{id}", consumes = "application/merge-patch+json")
-	@Operation(summary = "Djelomično ažuriraj task",  tags = {"Tasks"})
+	@Operation(summary = "Djelomično ažuriraj task", tags = { "Tasks" })
 	public ResponseEntity<EntityModel<Task>> patchTask(@PathVariable Long id, @RequestBody JsonNode patchJsonNode) {
-		Task originalTask = taskService.findById(id).orElseThrow(() -> new RuntimeException("Task not found"));
+		Task originalTask = taskService.findById(id).orElseThrow(() -> new RuntimeException("Task nije pronađen."));
 
 		Task patchedTask = applyMergePatch(patchJsonNode, originalTask);
 		Task updatedTask = taskService.update(patchedTask);
@@ -166,7 +149,7 @@ public class TaskController {
 			JsonNode merged = objectMapper.readerForUpdating(targetNode).readValue(patchNode.toString());
 			return objectMapper.treeToValue(merged, Task.class);
 		} catch (Exception e) {
-			throw new RuntimeException("Failed to apply JSON Merge Patch", e);
+			throw new RuntimeException("Greška kod apliciranja JSON Merge Patch", e);
 		}
 	}
 }

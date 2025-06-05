@@ -1,17 +1,27 @@
 version: '3'
 services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/board?serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+    depends_on:
+      - db
+
   db:
     image: mysql:8.0.33
     container_name: mySQL-board
     ports:
-      - '3306:3306'
+      - "3306:3306"
     environment:
-      - MYSQL_ROOT_PASSWORD=root
-      - MYSQL_DATABASE=board
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: board
     volumes:
       - myboard:/var/lib/mysql
     command: mysqld --default-authentication-plugin=mysql_native_password
-
 
 volumes:
   myboard:

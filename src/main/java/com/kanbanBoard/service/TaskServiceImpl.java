@@ -1,21 +1,20 @@
 package com.kanbanBoard.service;
 
-import com.kanbanBoard.entity.Task;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Page;
-import com.kanbanBoard.entity.Status;
-import com.kanbanBoard.entity.Priority;
-import com.kanbanBoard.repository.TaskRepository;
-import com.kanbanBoard.repository.StatusRepository;
-import com.kanbanBoard.repository.PriorityRepository;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+
+import com.kanbanBoard.entity.Priority;
+import com.kanbanBoard.entity.Status;
+import com.kanbanBoard.entity.Task;
+import com.kanbanBoard.repository.PriorityRepository;
+import com.kanbanBoard.repository.StatusRepository;
+import com.kanbanBoard.repository.TaskRepository;
 
 @Service
 public class TaskServiceImpl implements TaskService {
@@ -30,11 +29,11 @@ public class TaskServiceImpl implements TaskService {
 	private PriorityRepository priorityRepository;
 
 	public Page<Task> getAllTasks(String status, Pageable pageable) {
-	    if (status != null && !status.isBlank()) {
-	        return taskRepository.findByStatus(status, pageable);
-	    } else {
-	        return taskRepository.findAll(pageable);
-	    }
+		if (status != null && !status.isBlank()) {
+			return taskRepository.findByStatus(status, pageable);
+		} else {
+			return taskRepository.findAll(pageable);
+		}
 	}
 
 	public Optional<Task> getTaskById(Long id) {
