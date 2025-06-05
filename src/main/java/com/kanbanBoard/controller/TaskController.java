@@ -4,6 +4,7 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 import java.net.URI;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -50,7 +51,7 @@ public class TaskController {
 		this.objectMapper = objectMapper;
 	}
 
-	EntityModel<Task> toModel(Task task) {
+	EntityModel<Task> toHateaosModel(Task task) {
 		return EntityModel.of(task, linkTo(methodOn(TaskController.class).getTaskById(task.getId())).withSelfRel(),
 				linkTo(methodOn(TaskController.class).updateTask(task.getId(), task)).withRel("update"),
 				linkTo(methodOn(TaskController.class).deleteTask(task.getId())).withRel("delete"));
@@ -62,29 +63,16 @@ public class TaskController {
 			@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size,
 			@RequestParam(required = false) String[] sort) {
 
-		List<String> sortList = sort == null ? List.of() : List.of(sort);
-		List<Sort.Order> orders;
-
-		if (sortList.isEmpty()) {
-			orders = List.of(new Sort.Order(Sort.Direction.DESC, "createdAt"));
-		} else {
-			orders = sortList.stream().map(s -> {
-				String[] parts = s.split(",");
-				if (parts.length != 2) {
-					throw new IllegalArgumentException("Sort parametar mora biti u formatu: polje,smjer");
-				}
-				return new Sort.Order(Sort.Direction.fromString(parts[1]), parts[0]);
-			}).toList();
-		}
-
-		Pageable pageable = PageRequest.of(page, size, Sort.by(orders));
-
+		Pageable pageable = createPageable(page, size, sort);
 		Page<Task> taskPage = taskService.getAllTasks(status, pageable);
 
-		List<EntityModel<Task>> taskResources = taskPage.stream().map(this::toModel).collect(Collectors.toList());
+		List<EntityModel<Task>> taskResources = taskPage.stream().map(this::toHateaosModel)
+				.collect(Collectors.toList());
 
-		PagedModel<EntityModel<Task>> pagedModel = PagedModel.of(taskResources, new PagedModel.PageMetadata(
-				taskPage.getSize(), taskPage.getNumber(), taskPage.getTotalElements(), taskPage.getTotalPages()));
+		PagedModel.PageMetadata metadata = new PagedModel.PageMetadata(taskPage.getSize(), taskPage.getNumber(),
+				taskPage.getTotalElements(), taskPage.getTotalPages());
+
+		PagedModel<EntityModel<Task>> pagedModel = PagedModel.of(taskResources, metadata);
 
 		URI selfUri = ServletUriComponentsBuilder.fromCurrentRequest().build().toUri();
 		pagedModel.add(Link.of(selfUri.toString(), "self"));
@@ -95,7 +83,7 @@ public class TaskController {
 	@GetMapping("/{id}")
 	@Operation(summary = "Dohvati task po ID-ju", tags = { "Tasks" })
 	public ResponseEntity<EntityModel<Task>> getTaskById(@PathVariable Long id) {
-		return taskService.getTaskById(id).map(task -> ResponseEntity.ok(toModel(task)))
+		return taskService.getTaskById(id).map(task -> ResponseEntity.ok(toHateaosModel(task)))
 				.orElse(ResponseEntity.notFound().build());
 	}
 
@@ -103,7 +91,7 @@ public class TaskController {
 	@Operation(summary = "Kreiraj task", tags = { "Tasks" })
 	public ResponseEntity<EntityModel<Task>> createTask(@RequestBody Task task) {
 		Task created = taskService.createTask(task);
-		EntityModel<Task> model = toModel(created);
+		EntityModel<Task> model = toHateaosModel(created);
 		return ResponseEntity.created(linkTo(methodOn(TaskController.class).getTaskById(created.getId())).toUri())
 				.body(model);
 	}
@@ -113,7 +101,7 @@ public class TaskController {
 	public ResponseEntity<EntityModel<Task>> updateTask(@PathVariable Long id, @RequestBody Task updatedTask) {
 		try {
 			Task task = taskService.updateTask(id, updatedTask);
-			return ResponseEntity.ok(toModel(task));
+			return ResponseEntity.ok(toHateaosModel(task));
 		} catch (OptimisticLockingFailureException e) {
 			return ResponseEntity.status(HttpStatus.CONFLICT).build();
 		} catch (RuntimeException ex) {
@@ -140,7 +128,7 @@ public class TaskController {
 		Task patchedTask = applyMergePatch(patchJsonNode, originalTask);
 		Task updatedTask = taskService.update(patchedTask);
 
-		return ResponseEntity.ok(toModel(updatedTask));
+		return ResponseEntity.ok(toHateaosModel(updatedTask));
 	}
 
 	private Task applyMergePatch(JsonNode patchNode, Task targetBean) {
@@ -151,5 +139,24 @@ public class TaskController {
 		} catch (Exception e) {
 			throw new RuntimeException("Greška kod apliciranja JSON Merge Patch", e);
 		}
+	}
+
+	private Pageable createPageable(int page, int size, String[] sort) {
+		List<Sort.Order> orders = parseSortParameters(sort);
+		return PageRequest.of(page, size, Sort.by(orders));
+	}
+
+	private List<Sort.Order> parseSortParameters(String[] sort) {
+		if (sort == null || sort.length == 0) {
+			return List.of(new Sort.Order(Sort.Direction.DESC, "createdAt"));
+		}
+
+		return Arrays.stream(sort).map(s -> {
+			String[] parts = s.split(",");
+			if (parts.length != 2) {
+				throw new IllegalArgumentException("Sort parametar mora biti u formatu: polje,smjer");
+			}
+			return new Sort.Order(Sort.Direction.fromString(parts[1].trim()), parts[0].trim());
+		}).toList();
 	}
 }
