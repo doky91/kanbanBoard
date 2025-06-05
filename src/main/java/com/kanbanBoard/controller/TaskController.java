@@ -6,10 +6,11 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.PagedModel;
 import org.springframework.http.HttpStatus;
@@ -24,6 +25,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.net.URI;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.hateoas.Link;
+
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -53,21 +59,55 @@ public class TaskController {
 	}
 
 	@GetMapping
-	@Operation(summary = "Dohvati sve taskove",  tags = {"Tasks"})
-	public ResponseEntity<PagedModel<EntityModel<Task>>> getAllTasks(@RequestParam(required = false) String status,
-			@ParameterObject Pageable pageable) {
+	@Operation(summary = "Dohvati sve taskove", tags = {"Tasks"})
+	public ResponseEntity<PagedModel<EntityModel<Task>>> getAllTasks(
+	        @RequestParam(required = false) String status,
+	        @RequestParam(defaultValue = "0") int page,
+	        @RequestParam(defaultValue = "20") int size,
+	        @RequestParam(required = false) String[] sort) {
 
-		Page<Task> taskPage = taskService.getAllTasks(status, pageable);
+	    
+	    List<String> sortList = sort == null ? List.of() : List.of(sort);
+	    List<Sort.Order> orders;
 
-		List<EntityModel<Task>> taskResources = taskPage.stream().map(this::toModel).collect(Collectors.toList());
+	    if (sortList.isEmpty()) {
+	        orders = List.of(new Sort.Order(Sort.Direction.DESC, "createdAt"));
+	    } else {
+	        orders = sortList.stream()
+	                .map(s -> {
+	                    String[] parts = s.split(",");
+	                    if (parts.length != 2) {
+	                        throw new IllegalArgumentException("Sort parametar mora biti u formatu: polje,smjer");
+	                    }
+	                    return new Sort.Order(Sort.Direction.fromString(parts[1]), parts[0]);
+	                })
+	                .toList();
+	    }
 
-		PagedModel<EntityModel<Task>> pagedModel = PagedModel.of(taskResources, new PagedModel.PageMetadata(
-				taskPage.getSize(), taskPage.getNumber(), taskPage.getTotalElements(), taskPage.getTotalPages()));
+	    Pageable pageable = PageRequest.of(page, size, Sort.by(orders));
 
-		pagedModel.add(linkTo(methodOn(TaskController.class).getAllTasks(status, pageable)).withSelfRel());
+	    Page<Task> taskPage = taskService.getAllTasks(status, pageable);
 
-		return ResponseEntity.ok(pagedModel);
+	    List<EntityModel<Task>> taskResources = taskPage.stream()
+	            .map(this::toModel)
+	            .collect(Collectors.toList());
+
+	    PagedModel<EntityModel<Task>> pagedModel = PagedModel.of(
+	            taskResources,
+	            new PagedModel.PageMetadata(
+	                    taskPage.getSize(),
+	                    taskPage.getNumber(),
+	                    taskPage.getTotalElements(),
+	                    taskPage.getTotalPages()
+	            )
+	    );
+
+	    URI selfUri = ServletUriComponentsBuilder.fromCurrentRequest().build().toUri();
+	    pagedModel.add(Link.of(selfUri.toString(), "self"));
+
+	    return ResponseEntity.ok(pagedModel);
 	}
+
 
 	@GetMapping("/{id}")
     @Operation(summary = "Dohvati task po ID-ju", tags = {"Tasks"})

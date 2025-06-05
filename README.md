@@ -1,7 +1,7 @@
 # Kanban board
 
 Ovo je Java Spring Boot aplikacija razvijena za potrebe procesa intervjuiranja za poziciju Java Developera. 
-Projekt implementira REST API za CRUD taskova, demonstrirajući razumijevanje Spring Boot frameworka, REST principa i osnovnih principa razvoja softvera.
+Projekt implementira REST API za CRUD taskove, demonstrirajući razumijevanje Spring Boot frameworka, REST principa i osnovnih principa razvoja softvera.
 
 
 
